@@ -1,0 +1,58 @@
+import pandas as pd
+import json
+import re
+
+# Cargar CSV
+df = pd.read_csv('acaro-moni.csv', quotechar='"', skipinitialspace=True)
+
+# Normalizar nombres de finca
+def normalize_finca(nombre):
+    nombre = str(nombre).strip()
+    if 'Cementerio' in nombre:
+        return 'Cementerio'
+    # Agregar más reglas según sea necesario
+    return nombre
+
+df['finca_normalizada'] = df['4_Finca'].apply(normalize_finca)
+
+# Calcular severidad para cada estructura (0-12 -> %)
+estructuras = ['10_Brotes_hojas', '11_Hojas_adultas', '12_Brotes_limones', '13_Botone_florales', '14_Yemas']
+for col in estructuras:
+    df[col + '_severidad'] = pd.to_numeric(df[col], errors='coerce').fillna(0) / 12 * 100
+
+# Crear lista de puntos
+puntos = []
+for idx, row in df.iterrows():
+    punto = {
+        'id': row['ec5_uuid'],
+        'fecha': row['1_Fecha'],
+        'finca': row['finca_normalizada'],
+        'bloque': row['5_BloqueSector'],
+        'lat': row['lat_6_Geolocalizacin'],
+        'lon': row['long_6_Geolocalizacin'],
+        'severidad_hojas_adultas': row['11_Hojas_adultas_severidad'],
+        'severidad_brotes': row['10_Brotes_hojas_severidad'],
+        'severidad_limones': row['12_Brotes_limones_severidad'],
+        'severidad_botones': row['13_Botone_florales_severidad'],
+        'severidad_yemas': row['14_Yemas_severidad'],
+        'observaciones': row['15_Otros']
+    }
+    puntos.append(punto)
+
+# Calcular resumen por finca y bloque
+resumen = df.groupby(['finca_normalizada', '5_BloqueSector']).agg(
+    promedio_hojas_adultas=('11_Hojas_adultas_severidad', 'mean'),
+    promedio_brotes=('10_Brotes_hojas_severidad', 'mean'),
+    cantidad_muestras=('ec5_uuid', 'count')
+).reset_index()
+resumen_dict = resumen.to_dict(orient='records')
+
+# Guardar todo en un JSON
+output = {
+    'puntos': puntos,
+    'resumen': resumen_dict
+}
+with open('datos_monitoreo.json', 'w', encoding='utf-8') as f:
+    json.dump(output, f, indent=2, ensure_ascii=False)
+
+print("Archivo datos_monitoreo.json generado.")
