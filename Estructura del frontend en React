@@ -1,0 +1,6 @@
+npm create vite@latest acaro-dashboard -- --template react
+cd acaro-dashboard
+npm install leaflet react-leaflet @react-leaflet/core
+npm install recharts  # para gráficos
+npm install @headlessui/react  # para filtros (opcional)
+npm install tailwindcss  # para estilos rápidos
